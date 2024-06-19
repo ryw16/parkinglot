@@ -7,12 +7,8 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -49,6 +45,27 @@ public class ParkingLotApp extends Application {
     parkingLot = new ParkingLot(50, 3);
     ticketList = FXCollections.observableArrayList();
 
+    TabPane tabPane = new TabPane();
+
+    Tab tabparking = new Tab("Parking Lot");
+    tabparking.setContent(createParkingLotTab());
+    tabparking.setClosable(false);
+
+    Tab tabhistory = new Tab("Park Out History");
+    VBox emptyVBox = new VBox();
+    emptyVBox.setAlignment(Pos.CENTER);
+    emptyVBox.getChildren().add(new Label("This is an empty tab"));
+    tabhistory.setContent(emptyVBox);
+    tabhistory.setClosable(false);
+
+    tabPane.getTabs().addAll(tabparking, tabhistory);
+
+    Scene scene = new Scene(tabPane, 2000, 1000);
+    primaryStage.setScene(scene);
+    primaryStage.show();
+  }
+
+  private VBox createParkingLotTab() {
     GridPane grid = initGrid();
 
     Ticket[] savedData = loadTicketListFromJson();
@@ -60,14 +77,16 @@ public class ParkingLotApp extends Application {
       }
       updateAvailableSpots();
     }
-    Scene scene = new Scene(grid, 2000, 1000);
-    primaryStage.setScene(scene);
-    primaryStage.show();
+
+    VBox vbox = new VBox(10);
+    vbox.setPadding(new Insets(10, 10, 10, 10));
+    vbox.getChildren().addAll(grid);
+    return vbox;
   }
 
   private GridPane initGrid() {
     decisionInput = new TextField();
-    decisionInput.setPromptText("Enter decision (1: Enter, 2: Remove)");
+    decisionInput.setPromptText("Enter license plate");
 
     Label decisionLabel = new Label("License Plate:");
     Button addButton = new Button("Park In");
@@ -117,7 +136,7 @@ public class ParkingLotApp extends Application {
   }
 
   private void initTable() {
-    ticketTable = new TableView<Ticket>();
+    ticketTable = new TableView<>();
     ticketTable.setPrefWidth(1600);
     ticketTable.setPrefHeight(600);
 
@@ -147,9 +166,6 @@ public class ParkingLotApp extends Application {
 
     ticketTable.getColumns().addAll(licensePlateCol, parkInTimeCol, parkOutTimeCol, hourlyRateCol, totalTimeParkedCol,
         feeCol);
-
-    VBox tableBox = new VBox(10);
-    tableBox.getChildren().addAll(ticketTable);
   }
 
   public void handleParkIn(String license) {
@@ -178,7 +194,6 @@ public class ParkingLotApp extends Application {
       updateAvailableSpots();
 
       decisionInput.clear();
-
     } else {
       System.out.println("Parking lot is full. Cannot add more vehicles");
       statusLabel.setText("Parking lot is full. Cannot add more vehicles");
@@ -248,6 +263,7 @@ public class ParkingLotApp extends Application {
 
   public Ticket[] loadTicketListFromJson() {
     Ticket[] tickets = null;
+
     try {
       if (Files.exists(Paths.get("ticket.json"))) {
         String ticketString = new String(Files.readAllBytes(Paths.get("ticket.json")));
