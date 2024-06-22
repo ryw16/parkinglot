@@ -111,13 +111,13 @@ public class ParkingLotApp extends Application {
     statusLabel = new Label("");
     grid.add(statusLabel, 0, 2, 4, 1);
 
-    initTable();
+    initTable(ticketList);
     grid.add(ticketTable, 0, 3, 5, 1);
     return grid;
   }
 
-  private void initTable() {
-    ticketTable = new TableView<Ticket>();
+  private void initTable(ObservableList<Ticket> list) {
+    ticketTable = new TableView<Ticket>(list);
     ticketTable.setPrefWidth(1600);
     ticketTable.setPrefHeight(600);
 
@@ -174,7 +174,6 @@ public class ParkingLotApp extends Application {
 
       ticket.setHourlyRate(50);
 
-      ticketTable.getItems().add(ticket);
       updateAvailableSpots();
 
       decisionInput.clear();
