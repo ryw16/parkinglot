@@ -53,7 +53,6 @@ public class ParkingLotApp extends Application {
 
     Ticket[] savedData = loadTicketListFromJson();
     if (savedData != null) {
-      ticketTable.getItems().addAll(savedData);
       ticketList.addAll(savedData);
       for (Ticket ticket : savedData) {
         parkingLot.add(ticket);
