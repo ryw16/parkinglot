@@ -32,7 +32,9 @@ public class ParkingLotApp extends Application {
   Label availableSpotsLabel;
   Label statusLabel;
   TableView<Ticket> ticketTable;
-  ObservableList<Ticket> ticketList;
+  TableView<Ticket> historyTable;
+  ObservableList<Ticket> ticketList; // List for currently parked vehicles
+  ObservableList<Ticket> exitedTicketList; // List for exited vehicles
 
   public static void main(String[] args) {
     launch(args);
@@ -44,6 +46,7 @@ public class ParkingLotApp extends Application {
 
     parkingLot = new ParkingLot(50, 3);
     ticketList = FXCollections.observableArrayList();
+    exitedTicketList = FXCollections.observableArrayList();
 
     TabPane tabPane = new TabPane();
 
@@ -52,10 +55,7 @@ public class ParkingLotApp extends Application {
     tabparking.setClosable(false);
 
     Tab tabhistory = new Tab("Park Out History");
-    VBox emptyVBox = new VBox();
-    emptyVBox.setAlignment(Pos.CENTER);
-    emptyVBox.getChildren().add(new Label("This is an empty tab"));
-    tabhistory.setContent(emptyVBox);
+    tabhistory.setContent(createHistoryTab());
     tabhistory.setClosable(false);
 
     tabPane.getTabs().addAll(tabparking, tabhistory);
@@ -129,15 +129,16 @@ public class ParkingLotApp extends Application {
     statusLabel = new Label("");
     grid.add(statusLabel, 0, 2, 4, 1);
 
-    initTable(ticketList);
+    ticketTable = new TableView<>(ticketList);
+    initTable(ticketTable, ticketList);
     grid.add(ticketTable, 0, 3, 5, 1);
     return grid;
   }
 
-  private void initTable(ObservableList<Ticket> list) {
-    ticketTable = new TableView<Ticket>(list);
-    ticketTable.setPrefWidth(1600);
-    ticketTable.setPrefHeight(600);
+  private void initTable(TableView<Ticket> table, ObservableList<Ticket> list) {
+
+    table.setPrefWidth(1600);
+    table.setPrefHeight(600);
 
     TableColumn<Ticket, String> licensePlateCol = new TableColumn<>("License Plate");
     licensePlateCol.setCellValueFactory(new PropertyValueFactory<>("licensePlate"));
@@ -163,8 +164,19 @@ public class ParkingLotApp extends Application {
     feeCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFeeWithCurrency()));
     feeCol.setPrefWidth(250);
 
-    ticketTable.getColumns().addAll(licensePlateCol, parkInTimeCol, parkOutTimeCol, hourlyRateCol, totalTimeParkedCol,
+    table.getColumns().addAll(licensePlateCol, parkInTimeCol, parkOutTimeCol, hourlyRateCol, totalTimeParkedCol,
         feeCol);
+  }
+
+  private VBox createHistoryTab() {
+    historyTable = new TableView<>(exitedTicketList);
+    initTable(historyTable, ticketList);
+
+    VBox vbox = new VBox(10);
+    vbox.setPadding(new Insets(10, 10, 10, 10));
+    vbox.setAlignment(Pos.CENTER);
+    vbox.getChildren().add(historyTable);
+    return vbox;
   }
 
   public void handleParkIn(String license) {
@@ -182,7 +194,7 @@ public class ParkingLotApp extends Application {
       parkingLot.add(ticket);
       ticketList.add(ticket);
 
-      SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyy HH:mm:ss");
+      SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
       String formattedInTime = dateFormat.format(new Date());
       ticket.setFormattedInTime(formattedInTime);
       ticket.setInTime(System.currentTimeMillis());
@@ -230,9 +242,13 @@ public class ParkingLotApp extends Application {
       vehicleToRemove.setTotalTimeParked(totalTimeParkedMillis);
       vehicleToRemove.setFormattedTotalTimeParkedHours(vehicleToRemove.getFormattedTotalTimeParkedHours());
 
+      ticketList.remove(vehicleToRemove);
+      exitedTicketList.add(vehicleToRemove);
+
       if (parkingLot.getAvailableSpots() > 0) {
         statusLabel.setText("");
         ticketTable.refresh();
+        historyTable.refresh();
       }
 
       statusLabel.setText("");
@@ -289,5 +305,4 @@ public class ParkingLotApp extends Application {
     }
     return tickets;
   }
-
 }
