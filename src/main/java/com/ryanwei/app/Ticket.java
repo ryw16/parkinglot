@@ -130,11 +130,6 @@ public class Ticket {
     this.formattedTotalTimeParkedHours.set(formattedTotalTimeParkedHours);
   }
 
-  public String getFormattedTotalTimeParkedSeconds() {
-    long totalTimeParkedSeconds = totalTimeParked / 1000;
-    return String.valueOf(totalTimeParkedSeconds) + " seconds";
-  }
-
   // Properties
   public SimpleStringProperty licensePlateProperty() {
     return new SimpleStringProperty(this.getLicensePlate());
