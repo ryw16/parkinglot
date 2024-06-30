@@ -97,15 +97,4 @@ public class VehicleTest {
     String expectedFormattedTotalTimeParkedHours = String.format("%.2f", totalTimeParkedMillis / (1000.0 * 60 * 60));
     Assert.assertEquals(v1.getFormattedTotalTimeParkedHours(), expectedFormattedTotalTimeParkedHours);
   }
-
-  @Test
-  public void testGetFormattedTotalTimeParkedSeconds() {
-    Vehicle vehicle = new Vehicle("a");
-    Ticket v1 = new Ticket(vehicle);
-    long totalTimeParkedMillis = 3600000; // 1 hour in milliseconds
-    v1.setTotalTimeParked(totalTimeParkedMillis);
-    long totalTimeParkedSeconds = totalTimeParkedMillis / 1000;
-    String expectedFormattedTotalTimeParkedSeconds = totalTimeParkedSeconds + " seconds";
-    Assert.assertEquals(v1.getFormattedTotalTimeParkedSeconds(), expectedFormattedTotalTimeParkedSeconds);
-  }
 }

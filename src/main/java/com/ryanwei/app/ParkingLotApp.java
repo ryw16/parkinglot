@@ -7,12 +7,8 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -36,7 +32,9 @@ public class ParkingLotApp extends Application {
   Label availableSpotsLabel;
   Label statusLabel;
   TableView<Ticket> ticketTable;
-  ObservableList<Ticket> ticketList;
+  TableView<Ticket> historyTable;
+  ObservableList<Ticket> ticketList; // List for currently parked vehicles
+  ObservableList<Ticket> exitedTicketList; // List for exited vehicles
 
   public static void main(String[] args) {
     launch(args);
@@ -48,7 +46,26 @@ public class ParkingLotApp extends Application {
 
     parkingLot = new ParkingLot(50, 3);
     ticketList = FXCollections.observableArrayList();
+    exitedTicketList = FXCollections.observableArrayList();
 
+    TabPane tabPane = new TabPane();
+
+    Tab tabparking = new Tab("Parking Lot");
+    tabparking.setContent(createParkingLotTab());
+    tabparking.setClosable(false);
+
+    Tab tabhistory = new Tab("Park Out History");
+    tabhistory.setContent(createHistoryTab());
+    tabhistory.setClosable(false);
+
+    tabPane.getTabs().addAll(tabparking, tabhistory);
+
+    Scene scene = new Scene(tabPane, 2000, 1000);
+    primaryStage.setScene(scene);
+    primaryStage.show();
+  }
+
+  private VBox createParkingLotTab() {
     GridPane grid = initGrid();
 
     Ticket[] savedData = loadTicketListFromJson();
@@ -59,14 +76,16 @@ public class ParkingLotApp extends Application {
       }
       updateAvailableSpots();
     }
-    Scene scene = new Scene(grid, 2000, 1000);
-    primaryStage.setScene(scene);
-    primaryStage.show();
+
+    VBox vbox = new VBox(10);
+    vbox.setPadding(new Insets(10, 10, 10, 10));
+    vbox.getChildren().addAll(grid);
+    return vbox;
   }
 
   private GridPane initGrid() {
     decisionInput = new TextField();
-    decisionInput.setPromptText("Enter decision (1: Enter, 2: Remove)");
+    decisionInput.setPromptText("Enter license plate");
 
     Label decisionLabel = new Label("License Plate:");
     Button addButton = new Button("Park In");
@@ -110,15 +129,16 @@ public class ParkingLotApp extends Application {
     statusLabel = new Label("");
     grid.add(statusLabel, 0, 2, 4, 1);
 
-    initTable(ticketList);
+    ticketTable = new TableView<>(ticketList);
+    initTable(ticketTable, ticketList);
     grid.add(ticketTable, 0, 3, 5, 1);
     return grid;
   }
 
-  private void initTable(ObservableList<Ticket> list) {
-    ticketTable = new TableView<Ticket>(list);
-    ticketTable.setPrefWidth(1600);
-    ticketTable.setPrefHeight(600);
+  private void initTable(TableView<Ticket> table, ObservableList<Ticket> list) {
+
+    table.setPrefWidth(1600);
+    table.setPrefHeight(600);
 
     TableColumn<Ticket, String> licensePlateCol = new TableColumn<>("License Plate");
     licensePlateCol.setCellValueFactory(new PropertyValueFactory<>("licensePlate"));
@@ -144,11 +164,19 @@ public class ParkingLotApp extends Application {
     feeCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFeeWithCurrency()));
     feeCol.setPrefWidth(250);
 
-    ticketTable.getColumns().addAll(licensePlateCol, parkInTimeCol, parkOutTimeCol, hourlyRateCol, totalTimeParkedCol,
+    table.getColumns().addAll(licensePlateCol, parkInTimeCol, parkOutTimeCol, hourlyRateCol, totalTimeParkedCol,
         feeCol);
+  }
 
-    VBox tableBox = new VBox(10);
-    tableBox.getChildren().addAll(ticketTable);
+  private VBox createHistoryTab() {
+    historyTable = new TableView<>(exitedTicketList);
+    initTable(historyTable, ticketList);
+
+    VBox vbox = new VBox(10);
+    vbox.setPadding(new Insets(10, 10, 10, 10));
+    vbox.setAlignment(Pos.CENTER);
+    vbox.getChildren().add(historyTable);
+    return vbox;
   }
 
   public void handleParkIn(String license) {
@@ -166,7 +194,7 @@ public class ParkingLotApp extends Application {
       parkingLot.add(ticket);
       ticketList.add(ticket);
 
-      SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyy HH:mm:ss");
+      SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
       String formattedInTime = dateFormat.format(new Date());
       ticket.setFormattedInTime(formattedInTime);
       ticket.setInTime(System.currentTimeMillis());
@@ -176,7 +204,6 @@ public class ParkingLotApp extends Application {
       updateAvailableSpots();
 
       decisionInput.clear();
-
     } else {
       System.out.println("Parking lot is full. Cannot add more vehicles");
       statusLabel.setText("Parking lot is full. Cannot add more vehicles");
@@ -215,9 +242,13 @@ public class ParkingLotApp extends Application {
       vehicleToRemove.setTotalTimeParked(totalTimeParkedMillis);
       vehicleToRemove.setFormattedTotalTimeParkedHours(vehicleToRemove.getFormattedTotalTimeParkedHours());
 
+      ticketList.remove(vehicleToRemove);
+      exitedTicketList.add(vehicleToRemove);
+
       if (parkingLot.getAvailableSpots() > 0) {
         statusLabel.setText("");
         ticketTable.refresh();
+        historyTable.refresh();
       }
 
       statusLabel.setText("");
@@ -230,12 +261,19 @@ public class ParkingLotApp extends Application {
 
   public void saveTicketListToJson() {
     try {
-      Writer writer = new FileWriter("ticket.json");
+      Writer writer = new FileWriter("tickets.json");
       Gson gson = new GsonBuilder().registerTypeAdapter(Ticket.class, new TicketAdapter()).create();
-      Ticket[] activeTickets = ticketList.stream()
-          .filter(ticket -> ticket.getOutTime() == 0)
-          .toArray(Ticket[]::new);
-      String json = gson.toJson(activeTickets);
+
+      Ticket[] allTickets = new Ticket[ticketList.size() + exitedTicketList.size()];
+      int index = 0;
+      for (Ticket ticket : ticketList) {
+        allTickets[index++] = ticket;
+      }
+      for (Ticket ticket : exitedTicketList) {
+        allTickets[index++] = ticket;
+      }
+
+      String json = gson.toJson(allTickets);
       writer.write(json);
       writer.close();
       System.out.println("Tickets saved successfully.");
@@ -246,29 +284,31 @@ public class ParkingLotApp extends Application {
 
   public Ticket[] loadTicketListFromJson() {
     Ticket[] tickets = null;
+
     try {
-      if (Files.exists(Paths.get("ticket.json"))) {
-        String ticketString = new String(Files.readAllBytes(Paths.get("ticket.json")));
+      if (Files.exists(Paths.get("tickets.json"))) {
+        String ticketString = new String(Files.readAllBytes(Paths.get("tickets.json")));
         if (ticketString.length() > 0) {
           Gson gson = new GsonBuilder().registerTypeAdapter(Ticket.class, new TicketAdapter()).create();
           Ticket[] allTickets = gson.fromJson(ticketString, Ticket[].class);
-          // Filter out vehicles that are parked out
-          tickets = Arrays.stream(allTickets)
-              .filter(ticket -> ticket.getOutTime() == 0)
-              .toArray(Ticket[]::new);
+
+          for (Ticket ticket : allTickets) {
+            if (ticket.getOutTime() == 0) {
+              ticketList.add(ticket);
+              parkingLot.add(ticket);
+            } else {
+              exitedTicketList.add(ticket);
+            }
+          }
         }
       }
     } catch (FileNotFoundException e) {
-      // Handle file not found exception
-      System.err.println("File 'ticket.json' not found.");
+      System.err.println("File 'tickets.json' not found.");
     } catch (IOException e) {
-      // Handle IO exception
-      System.err.println("Error reading 'ticket.json'.");
+      System.err.println("Error reading 'tickets.json'.");
     } catch (JsonSyntaxException e) {
-      // Handle JSON syntax exception
-      System.err.println("Error parsing JSON in 'ticket.json'.");
+      System.err.println("Error parsing JSON in 'tickets.json'.");
     } catch (Exception e) {
-      // Handle any other exception
       System.err.println("An error occurred: " + e.getMessage());
     }
     return tickets;

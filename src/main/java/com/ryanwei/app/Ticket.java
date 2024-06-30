@@ -14,8 +14,6 @@ public class Ticket {
   private int hourlyRate;
   private long totalTimeParked;
   private SimpleStringProperty formattedTotalTimeParkedHours;
-  private SimpleStringProperty formattedTotalTimeParkedSeconds;
-  private SimpleStringProperty formattedTotalTimeParked;
   private Vehicle vehicle;
 
   public Ticket(Vehicle vehicle) {
@@ -27,13 +25,10 @@ public class Ticket {
     this.formattedInTime = new SimpleStringProperty("");
     this.formattedOutTime = new SimpleStringProperty("");
     this.formattedTotalTimeParkedHours = new SimpleStringProperty("");
-    this.formattedTotalTimeParkedSeconds = new SimpleStringProperty("");
-    this.formattedTotalTimeParked = new SimpleStringProperty("");
     this.hourlyRate = 50;
   }
 
   // Getters and Setters
-
   public Vehicle getVehicle() {
     return vehicle;
   }
@@ -99,7 +94,7 @@ public class Ticket {
   public void setTotalTimeParked(long totalTimeParked) {
     this.totalTimeParked = totalTimeParked;
     setFormattedTotalTimeParkedHours(getFormattedTotalTimeParkedHours());
-    setFormattedTotalTimeParkedSeconds(getFormattedTotalTimeParkedSeconds());
+
   }
 
   public String getFormattedInTime() {
@@ -135,30 +130,7 @@ public class Ticket {
     this.formattedTotalTimeParkedHours.set(formattedTotalTimeParkedHours);
   }
 
-  public String getFormattedTotalTimeParkedSeconds() {
-    long totalTimeParkedSeconds = totalTimeParked / 1000;
-    return String.valueOf(totalTimeParkedSeconds) + " seconds";
-  }
-
-  public void setFormattedTotalTimeParkedSeconds(String formattedTotalTimeParkedSeconds) {
-    this.formattedTotalTimeParkedSeconds.set(formattedTotalTimeParkedSeconds);
-  }
-
-  public String getFormattedTotalTimeParked() {
-    return formattedTotalTimeParked.get();
-  }
-
-  public void setFormattedTotalTimeParked(String formattedTotalTimeParked) {
-    this.formattedTotalTimeParked.set(formattedTotalTimeParked);
-  }
-
-  public void calculateAndSetFormattedTotalTimeParked() {
-    long totalTimeParkedHours = totalTimeParked / (1000 * 60 * 60);
-    formattedTotalTimeParked.set(totalTimeParkedHours + " hours");
-  }
-
   // Properties
-
   public SimpleStringProperty licensePlateProperty() {
     return new SimpleStringProperty(this.getLicensePlate());
   }
@@ -189,13 +161,5 @@ public class Ticket {
 
   public SimpleStringProperty formattedTotalTimeParkedHoursProperty() {
     return formattedTotalTimeParkedHours;
-  }
-
-  public SimpleStringProperty formattedTotalTimeParkedSecondsProperty() {
-    return formattedTotalTimeParkedSeconds;
-  }
-
-  public SimpleStringProperty formattedTotalTimeParkedProperty() {
-    return formattedTotalTimeParked;
   }
 }
