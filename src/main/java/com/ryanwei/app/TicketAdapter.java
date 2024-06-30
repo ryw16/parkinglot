@@ -14,6 +14,7 @@ public class TicketAdapter implements JsonSerializer<Ticket>, JsonDeserializer<T
     jsonObject.addProperty("fee", src.getFee());
     jsonObject.addProperty("formattedInTime", src.getFormattedInTime());
     jsonObject.addProperty("formattedOutTime", src.getFormattedOutTime());
+    jsonObject.addProperty("formattedTotalTimeParkedHours", src.getFormattedTotalTimeParkedHours());
     return jsonObject;
   }
 
@@ -28,6 +29,7 @@ public class TicketAdapter implements JsonSerializer<Ticket>, JsonDeserializer<T
     double fee = jsonObject.get("fee").getAsDouble();
     String formattedInTime = jsonObject.get("formattedInTime").getAsString();
     String formattedOutTime = jsonObject.get("formattedOutTime").getAsString();
+    String formattedTotalTimeParkedHours = jsonObject.get("formattedTotalTimeParkedHours").getAsString();
 
     Vehicle vehicle = new Vehicle(licensePlate);
     Ticket ticket = new Ticket(vehicle);
@@ -37,6 +39,7 @@ public class TicketAdapter implements JsonSerializer<Ticket>, JsonDeserializer<T
     ticket.setFee(fee);
     ticket.setFormattedInTime(formattedInTime);
     ticket.setFormattedOutTime(formattedOutTime);
+    ticket.setFormattedTotalTimeParkedHours(formattedTotalTimeParkedHours);
 
     return ticket;
   }

@@ -261,12 +261,19 @@ public class ParkingLotApp extends Application {
 
   public void saveTicketListToJson() {
     try {
-      Writer writer = new FileWriter("ticket.json");
+      Writer writer = new FileWriter("tickets.json");
       Gson gson = new GsonBuilder().registerTypeAdapter(Ticket.class, new TicketAdapter()).create();
-      Ticket[] activeTickets = ticketList.stream()
-          .filter(ticket -> ticket.getOutTime() == 0)
-          .toArray(Ticket[]::new);
-      String json = gson.toJson(activeTickets);
+
+      Ticket[] allTickets = new Ticket[ticketList.size() + exitedTicketList.size()];
+      int index = 0;
+      for (Ticket ticket : ticketList) {
+        allTickets[index++] = ticket;
+      }
+      for (Ticket ticket : exitedTicketList) {
+        allTickets[index++] = ticket;
+      }
+
+      String json = gson.toJson(allTickets);
       writer.write(json);
       writer.close();
       System.out.println("Tickets saved successfully.");
@@ -279,30 +286,32 @@ public class ParkingLotApp extends Application {
     Ticket[] tickets = null;
 
     try {
-      if (Files.exists(Paths.get("ticket.json"))) {
-        String ticketString = new String(Files.readAllBytes(Paths.get("ticket.json")));
+      if (Files.exists(Paths.get("tickets.json"))) {
+        String ticketString = new String(Files.readAllBytes(Paths.get("tickets.json")));
         if (ticketString.length() > 0) {
           Gson gson = new GsonBuilder().registerTypeAdapter(Ticket.class, new TicketAdapter()).create();
           Ticket[] allTickets = gson.fromJson(ticketString, Ticket[].class);
-          // Filter out vehicles that are parked out
-          tickets = Arrays.stream(allTickets)
-              .filter(ticket -> ticket.getOutTime() == 0)
-              .toArray(Ticket[]::new);
+
+          for (Ticket ticket : allTickets) {
+            if (ticket.getOutTime() == 0) {
+              ticketList.add(ticket);
+              parkingLot.add(ticket);
+            } else {
+              exitedTicketList.add(ticket);
+            }
+          }
         }
       }
     } catch (FileNotFoundException e) {
-      // Handle file not found exception
-      System.err.println("File 'ticket.json' not found.");
+      System.err.println("File 'tickets.json' not found.");
     } catch (IOException e) {
-      // Handle IO exception
-      System.err.println("Error reading 'ticket.json'.");
+      System.err.println("Error reading 'tickets.json'.");
     } catch (JsonSyntaxException e) {
-      // Handle JSON syntax exception
-      System.err.println("Error parsing JSON in 'ticket.json'.");
+      System.err.println("Error parsing JSON in 'tickets.json'.");
     } catch (Exception e) {
-      // Handle any other exception
       System.err.println("An error occurred: " + e.getMessage());
     }
     return tickets;
   }
+
 }

@@ -11,6 +11,7 @@ This project is a Java-based parking lot management system with a graphical user
 - Saves the current state to a JSON file to restore the session
 - Generates a status report listing all occupied slots along with the corresponding vehicle registration numbers
 - Users can easily manage slot availability, including marking slots as unavailable for maintenance or other reasons
+- Users are able to access two tabs (parking lot and history) to park in or parkout a vehicle and view the history of vehicles parked out already
 
 ## Getting Started
 
