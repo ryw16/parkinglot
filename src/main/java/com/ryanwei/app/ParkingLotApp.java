@@ -14,17 +14,13 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.io.FileWriter;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonSyntaxException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class ParkingLotApp extends Application {
   ParkingLot parkingLot;
@@ -33,8 +29,9 @@ public class ParkingLotApp extends Application {
   Label statusLabel;
   TableView<Ticket> ticketTable;
   TableView<Ticket> historyTable;
-  ObservableList<Ticket> ticketList; // List for currently parked vehicles
-  ObservableList<Ticket> exitedTicketList; // List for exited vehicles
+  ObservableList<Ticket> ticketList;
+  ObservableList<Ticket> exitedTicketList;
+  private static final String DB_URL = "jdbc:sqlite:parkinglot.db";
 
   public static void main(String[] args) {
     launch(args);
@@ -63,19 +60,13 @@ public class ParkingLotApp extends Application {
     Scene scene = new Scene(tabPane, 2000, 1000);
     primaryStage.setScene(scene);
     primaryStage.show();
+
+    createDatabaseTables();
+    loadTicketListFromDatabase();
   }
 
   private VBox createParkingLotTab() {
     GridPane grid = initGrid();
-
-    Ticket[] savedData = loadTicketListFromJson();
-    if (savedData != null) {
-      ticketList.addAll(savedData);
-      for (Ticket ticket : savedData) {
-        parkingLot.add(ticket);
-      }
-      updateAvailableSpots();
-    }
 
     VBox vbox = new VBox(10);
     vbox.setPadding(new Insets(10, 10, 10, 10));
@@ -104,12 +95,11 @@ public class ParkingLotApp extends Application {
     removeButton.setOnAction(e -> {
       String license = decisionInput.getText();
       if (!license.isEmpty()) {
-        System.out.println("Removing ticket with license plate: " + license);
         handleParkOut(license);
       }
     });
 
-    saveButton.setOnAction(e -> saveTicketListToJson());
+    saveButton.setOnAction(e -> saveTicketListToDatabase());
 
     GridPane grid = new GridPane();
 
@@ -136,7 +126,6 @@ public class ParkingLotApp extends Application {
   }
 
   private void initTable(TableView<Ticket> table, ObservableList<Ticket> list) {
-
     table.setPrefWidth(1600);
     table.setPrefHeight(600);
 
@@ -170,7 +159,7 @@ public class ParkingLotApp extends Application {
 
   private VBox createHistoryTab() {
     historyTable = new TableView<>(exitedTicketList);
-    initTable(historyTable, ticketList);
+    initTable(historyTable, exitedTicketList);
 
     VBox vbox = new VBox(10);
     vbox.setPadding(new Insets(10, 10, 10, 10));
@@ -259,59 +248,97 @@ public class ParkingLotApp extends Application {
     }
   }
 
-  public void saveTicketListToJson() {
-    try {
-      Writer writer = new FileWriter("tickets.json");
-      Gson gson = new GsonBuilder().registerTypeAdapter(Ticket.class, new TicketAdapter()).create();
-
-      Ticket[] allTickets = new Ticket[ticketList.size() + exitedTicketList.size()];
-      int index = 0;
-      for (Ticket ticket : ticketList) {
-        allTickets[index++] = ticket;
-      }
-      for (Ticket ticket : exitedTicketList) {
-        allTickets[index++] = ticket;
-      }
-
-      String json = gson.toJson(allTickets);
-      writer.write(json);
-      writer.close();
-      System.out.println("Tickets saved successfully.");
-    } catch (Exception e) {
-      e.printStackTrace();
+  private void createDatabaseTables() {
+    try (Connection conn = DriverManager.getConnection(DB_URL);
+        Statement stmt = conn.createStatement()) {
+      String sql = "CREATE TABLE IF NOT EXISTS tickets (" +
+          "licensePlate TEXT PRIMARY KEY, " +
+          "spot INTEGER, " +
+          "inTime INTEGER, " +
+          "outTime INTEGER, " +
+          "fee REAL, " +
+          "formattedInTime TEXT, " +
+          "formattedOutTime TEXT, " +
+          "formattedTotalTimeParkedHours TEXT)";
+      stmt.execute(sql);
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
     }
   }
 
-  public Ticket[] loadTicketListFromJson() {
-    Ticket[] tickets = null;
+  private void saveTicketListToDatabase() {
+    String sql = "INSERT OR REPLACE INTO tickets(licensePlate, spot, inTime, outTime, fee, formattedInTime, formattedOutTime, formattedTotalTimeParkedHours) VALUES(?,?,?,?,?,?,?,?)";
 
+    try (
+        Connection conn = DriverManager.getConnection(DB_URL);
+        PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+      for (Ticket ticket : ticketList) {
+        insertRecord(pstmt, ticket);
+      }
+
+      for (Ticket ticket : exitedTicketList) {
+        insertRecord(pstmt, ticket);
+      }
+
+      System.out.println("Tickets saved successfully to SQLite.");
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }
+
+  private void insertRecord(PreparedStatement pstmt, Ticket ticket) {
     try {
-      if (Files.exists(Paths.get("tickets.json"))) {
-        String ticketString = new String(Files.readAllBytes(Paths.get("tickets.json")));
-        if (ticketString.length() > 0) {
-          Gson gson = new GsonBuilder().registerTypeAdapter(Ticket.class, new TicketAdapter()).create();
-          Ticket[] allTickets = gson.fromJson(ticketString, Ticket[].class);
+      pstmt.setString(1, ticket.getLicensePlate());
+      pstmt.setInt(2, ticket.getSpot());
+      pstmt.setLong(3, ticket.getInTime());
+      pstmt.setLong(4, ticket.getOutTime());
+      pstmt.setDouble(5, ticket.getFee());
+      pstmt.setString(6, ticket.getFormattedInTime());
+      pstmt.setString(7, ticket.getFormattedOutTime());
+      pstmt.setString(8, ticket.getFormattedTotalTimeParkedHours());
+      pstmt.executeUpdate();
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }
 
-          for (Ticket ticket : allTickets) {
-            if (ticket.getOutTime() == 0) {
-              ticketList.add(ticket);
-              parkingLot.add(ticket);
-            } else {
-              exitedTicketList.add(ticket);
-            }
-          }
+  private void loadTicketListFromDatabase() {
+    String sql = "SELECT * FROM tickets";
+
+    try (Connection conn = DriverManager.getConnection(DB_URL);
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(sql)) {
+
+      while (rs.next()) {
+        String licensePlate = rs.getString("licensePlate");
+        int spot = rs.getInt("spot");
+        long inTime = rs.getLong("inTime");
+        long outTime = rs.getLong("outTime");
+        double fee = rs.getDouble("fee");
+        String formattedInTime = rs.getString("formattedInTime");
+        String formattedOutTime = rs.getString("formattedOutTime");
+        String formattedTotalTimeParkedHours = rs.getString("formattedTotalTimeParkedHours");
+
+        Vehicle vehicle = new Vehicle(licensePlate);
+        Ticket ticket = new Ticket(vehicle);
+        ticket.setSpot(spot);
+        ticket.setInTime(inTime);
+        ticket.setOutTime(outTime);
+        ticket.setFee(fee);
+        ticket.setFormattedInTime(formattedInTime);
+        ticket.setFormattedOutTime(formattedOutTime);
+        ticket.setFormattedTotalTimeParkedHours(formattedTotalTimeParkedHours);
+
+        if (outTime == 0) {
+          ticketList.add(ticket);
+          parkingLot.add(ticket);
+        } else {
+          exitedTicketList.add(ticket);
         }
       }
-    } catch (FileNotFoundException e) {
-      System.err.println("File 'tickets.json' not found.");
-    } catch (IOException e) {
-      System.err.println("Error reading 'tickets.json'.");
-    } catch (JsonSyntaxException e) {
-      System.err.println("Error parsing JSON in 'tickets.json'.");
-    } catch (Exception e) {
-      System.err.println("An error occurred: " + e.getMessage());
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
     }
-    return tickets;
   }
-
 }
